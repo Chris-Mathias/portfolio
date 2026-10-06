@@ -1,0 +1,66 @@
+---
+import '@fontsource-variable/jetbrains-mono';
+import '../styles/global.css';
+import { profile } from '../data/profile';
+import { locales, paths, type Lang } from '../i18n/ui';
+
+interface Props {
+  lang: Lang;
+  title: string;
+  description: string;
+  /** Páginas sem versão traduzida (ex.: 404) não emitem hreflang nem canonical. */
+  alternates?: boolean;
+}
+
+const { lang, title, description, alternates = true } = Astro.props;
+const site = Astro.site!;
+const canonical = new URL(paths[lang], site).href;
+
+const person = {
+  '@context': 'https://schema.org',
+  '@type': 'Person',
+  name: profile.name,
+  url: site.href,
+  email: `mailto:${profile.email}`,
+  jobTitle: 'Full-stack developer',
+  sameAs: [`https://github.com/${profile.githubUser}`, profile.linkedin].filter(Boolean),
+};
+---
+
+<!doctype html>
+<html lang={locales[lang]}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <meta name="theme-color" content="#14161b" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    {alternates && (
+      <>
+        <link rel="canonical" href={canonical} />
+        {(Object.keys(paths) as Lang[]).map((l) => (
+          <link rel="alternate" hreflang={locales[l]} href={new URL(paths[l], site).href} />
+        ))}
+        <link rel="alternate" hreflang="x-default" href={new URL(paths.pt, site).href} />
+      </>
+    )}
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:locale" content={locales[lang].replace('-', '_')} />
+    <script is:inline>
+      // Prepara a animação de digitação antes da primeira pintura (ver Terminal.astro).
+      // O timeout garante que o conteúdo apareça mesmo se o script da página falhar.
+      if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        document.documentElement.classList.add('typing');
+        setTimeout(() => document.documentElement.classList.remove('typing'), 10000);
+      }
+    </script>
+    <script type="application/ld+json" is:inline set:html={JSON.stringify(person)} />
+  </head>
+  <body>
+    <slot />
+  </body>
+</html>
