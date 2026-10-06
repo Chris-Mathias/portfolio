@@ -1,0 +1,382 @@
+---
+import { Image } from 'astro:assets';
+
+import { profile } from '../data/profile';
+import { paths, ui, type Lang } from '../i18n/ui';
+
+interface Props {
+  lang: Lang;
+}
+
+const { lang } = Astro.props;
+const t = ui[lang];
+const initials = profile.name
+  .split(' ')
+  .map((part) => part[0])
+  .join('');
+const github = `https://github.com/${profile.githubUser}`;
+---
+
+<main class="term">
+  <header class="bar">
+    <span>christian@michelson: ~</span>
+    <nav aria-label={t.langLabel}>
+      {(Object.keys(paths) as Lang[]).map((l, i) => (
+        <>
+          {i > 0 && <span aria-hidden="true"> | </span>}
+          <a
+            href={paths[l]}
+            lang={l === 'pt' ? 'pt-BR' : 'en'}
+            aria-current={l === lang ? 'page' : undefined}
+          >
+            {l}
+          </a>
+        </>
+      ))}
+    </nav>
+  </header>
+
+  <section class="blk">
+    <p class="cmd">whoami</p>
+    <div class="out who">
+      {profile.photo ? (
+        <div class="photo">
+          <Image
+            src={profile.photo}
+            alt={t.photoAlt}
+            width={120}
+            height={120}
+            densities={[1, 2]}
+            format="webp"
+            quality={80}
+            loading="eager"
+          />
+        </div>
+      ) : (
+        <div class="photo placeholder" aria-hidden="true">
+          {initials}
+        </div>
+      )}
+      <div>
+        <h1>{profile.name}</h1>
+        <p class="comment">{t.role}</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="blk" id="sobre">
+    <p class="cmd">cat {t.aboutFile}</p>
+    <p class="out">{t.about}</p>
+  </section>
+
+  <section class="blk" id="ferramentas">
+    <p class="cmd">ls {t.toolsDir}</p>
+    <ul class="out ls">
+      {profile.tools.map((tool) => (
+        <li>{tool}</li>
+      ))}
+    </ul>
+  </section>
+
+  <section class="blk" id="contato">
+    <p class="cmd">cat {t.contactFile}</p>
+    <dl class="out kv">
+      <dt>email</dt>
+      <dd>
+        <a href={`mailto:${profile.email}`}>{profile.email}</a>
+        <button
+          class="copy"
+          type="button"
+          data-copy={profile.email}
+          data-done={t.copied}
+          aria-live="polite"
+        >
+          [{t.copy}]
+        </button>
+      </dd>
+      <dt>github</dt>
+      <dd>
+        <a href={github} rel="me">
+          github.com/{profile.githubUser}
+        </a>
+      </dd>
+      {profile.linkedin && (
+        <>
+          <dt>linkedin</dt>
+          <dd>
+            <a href={profile.linkedin} rel="me">
+              {profile.linkedin.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '')}
+            </a>
+          </dd>
+        </>
+      )}
+    </dl>
+  </section>
+
+  <p class="blk cmd idle" aria-hidden="true">
+    <span class="cursor"></span>
+  </p>
+</main>
+
+<script>
+  const CHAR_MS = 55;
+  const ENTER_MS = 220;
+  /** Intervalo entre as linhas da saída; o fade de cada linha está no CSS (`print`). */
+  const LINE_MS = 60;
+  const AFTER_OUTPUT_MS = 260;
+
+  const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+  /** Escalona as linhas da saída (--line) e devolve quantas são. Em `dl`, cada par dt/dd é uma linha. */
+  function printOutput(block: HTMLElement): number {
+    const out = block.querySelector<HTMLElement>('.out');
+    if (!out) return 0;
+    const items = [...out.children] as HTMLElement[];
+    const perLine = out.tagName === 'DL' ? 2 : 1;
+    items.forEach((item, i) => item.style.setProperty('--line', String(Math.floor(i / perLine))));
+    return Math.max(1, Math.ceil(items.length / perLine));
+  }
+
+  async function typeSession() {
+    const root = document.documentElement;
+    if (!root.classList.contains('typing')) return;
+
+    const blocks = [...document.querySelectorAll<HTMLElement>('.term .blk')];
+    const idle = document.querySelector<HTMLElement>('.term .idle');
+    const cursor = idle?.querySelector<HTMLElement>('.cursor');
+    let skipped = false;
+    const skip = () => (skipped = true);
+    addEventListener('keydown', skip, { once: true });
+    addEventListener('pointerdown', skip, { once: true });
+
+    for (const block of blocks) {
+      block.classList.add('shown');
+      const cmd = block.querySelector<HTMLElement>('.cmd:not(.idle)');
+      if (cmd && cursor && !skipped) {
+        const text = cmd.textContent ?? '';
+        cmd.textContent = '';
+        cmd.append(cursor);
+        for (const char of text) {
+          if (skipped) break;
+          cursor.before(char);
+          // Pequena variação no ritmo para não parecer mecânico.
+          await sleep(CHAR_MS + Math.random() * CHAR_MS * 0.6);
+        }
+        cmd.textContent = text;
+        if (!skipped) await sleep(ENTER_MS);
+      }
+      const lines = printOutput(block);
+      block.classList.add('done');
+      if (!skipped) await sleep(lines * LINE_MS + AFTER_OUTPUT_MS);
+    }
+
+    if (cursor && idle) idle.append(cursor);
+    root.classList.remove('typing');
+  }
+
+  typeSession();
+
+  for (const button of document.querySelectorAll<HTMLButtonElement>('button[data-copy]')) {
+    const label = button.textContent;
+    button.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(button.dataset.copy ?? '');
+        button.textContent = `[${button.dataset.done}]`;
+        setTimeout(() => (button.textContent = label), 1500);
+      } catch {
+        // Sem permissão de clipboard: o link mailto continua disponível ao lado.
+      }
+    });
+  }
+</script>
+
+<style>
+  .term {
+    max-width: 110ch;
+    margin: 0 auto;
+    padding: clamp(1rem, 4vw, 2.5rem) clamp(1rem, 5vw, 2.5rem) 4rem;
+  }
+
+  .bar {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 1rem;
+    color: var(--muted);
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 2rem;
+  }
+
+  .bar a {
+    color: var(--dim);
+  }
+
+  .bar a[aria-current='page'] {
+    color: var(--prompt);
+  }
+
+  .blk {
+    margin: 0 0 1.6rem;
+  }
+
+  .cmd {
+    margin: 0;
+    color: var(--dim);
+  }
+
+  .cmd::before {
+    content: '$ ';
+    color: var(--prompt);
+  }
+
+  .out {
+    margin: 0.3rem 0 0;
+    padding-left: 1.1rem;
+  }
+
+  .who {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 1.25rem;
+    align-items: center;
+    margin-top: 0.6rem;
+  }
+
+  .photo {
+    width: clamp(84px, 14vw, 120px);
+    aspect-ratio: 1;
+    border-radius: 6px;
+    border: 1px solid var(--line);
+    overflow: hidden;
+  }
+
+  .photo :global(img) {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .placeholder {
+    display: grid;
+    place-items: center;
+    border-style: dashed;
+    border-color: #3a404d;
+    color: var(--muted);
+    font-size: 1.4rem;
+    letter-spacing: 0.1em;
+  }
+
+  h1 {
+    margin: 0;
+    color: var(--bright);
+    font-size: clamp(1.4rem, 1rem + 2.2vw, 2.25rem);
+    line-height: 1.15;
+    font-weight: 700;
+    text-wrap: balance;
+  }
+
+  .comment {
+    margin: 0.2rem 0 0;
+    color: var(--muted);
+  }
+
+  .ls {
+    list-style: none;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.2rem 1.6rem;
+    color: var(--string);
+  }
+
+  .kv {
+    display: grid;
+    grid-template-columns: 9ch minmax(0, 1fr);
+    gap: 0.15rem 0;
+  }
+
+  .kv dt {
+    color: var(--muted);
+  }
+
+  .kv dd {
+    margin: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .copy {
+    font: inherit;
+    font-size: 0.85em;
+    color: var(--muted);
+    background: none;
+    border: 0;
+    padding: 0 0 0 0.6rem;
+    cursor: pointer;
+  }
+
+  .copy:hover {
+    color: var(--prompt);
+  }
+
+  .cursor {
+    display: inline-block;
+    width: 0.6em;
+    height: 1.1em;
+    background: var(--string);
+    vertical-align: -0.2em;
+    animation: blink 1.1s steps(1) infinite;
+  }
+
+  /*
+   * Digitação: o script em Base.astro marca <html class="typing"> antes da pintura; os blocos
+   * ficam ocultos até o script abaixo digitar cada comando (.shown) e imprimir a saída (.done).
+   * Sem JavaScript ou com movimento reduzido, a classe não existe e tudo aparece de uma vez.
+   */
+  :global(.typing) .blk:not(.shown),
+  :global(.typing) .blk:not(.done) .out {
+    visibility: hidden;
+  }
+
+  /* Saída impressa linha a linha: surge com um fade curto e sobe levemente até o lugar. */
+  :global(.typing) .done .out:not(:has(> *)),
+  :global(.typing) .done .out > * {
+    animation: print 0.28s ease-out backwards;
+    animation-delay: calc(var(--line, 0) * 60ms);
+  }
+
+  @keyframes print {
+    from {
+      opacity: 0;
+      transform: translateY(0.35em);
+    }
+  }
+
+  /* Enquanto digita, o cursor fica aceso; ele só pisca parado no último prompt. */
+  .cmd:not(.idle) .cursor {
+    animation: none;
+    margin-left: 0.1em;
+  }
+
+  @keyframes blink {
+    50% {
+      opacity: 0;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .kv {
+      grid-template-columns: 1fr;
+    }
+
+    .kv dd + dt {
+      margin-top: 0.5rem;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .cursor {
+      animation: none;
+    }
+  }
+</style>
