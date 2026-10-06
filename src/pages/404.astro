@@ -1,0 +1,53 @@
+---
+import { ui } from '../i18n/ui';
+import Base from '../layouts/Base.astro';
+
+const t = ui.pt;
+---
+
+<Base lang="pt" title={t.notFoundTitle} description={t.description} alternates={false}>
+  <main>
+    <p class="cmd">
+      cd <span id="path">/…</span>
+    </p>
+    <p class="err">
+      bash: cd: <span id="path-err">/…</span>: {t.notFound}
+    </p>
+    <p class="cmd">
+      <a href="/">cd ~</a>
+    </p>
+  </main>
+</Base>
+
+<script>
+  for (const id of ['path', 'path-err']) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = decodeURIComponent(location.pathname);
+  }
+</script>
+
+<style>
+  main {
+    max-width: 110ch;
+    margin: 0 auto;
+    padding: clamp(2rem, 6vw, 4rem) clamp(1rem, 5vw, 2.5rem);
+  }
+
+  p {
+    margin: 0 0 0.6rem;
+    overflow-wrap: anywhere;
+  }
+
+  .cmd {
+    color: var(--dim);
+  }
+
+  .cmd::before {
+    content: '$ ';
+    color: var(--prompt);
+  }
+
+  .err {
+    color: #e88b8b;
+  }
+</style>
