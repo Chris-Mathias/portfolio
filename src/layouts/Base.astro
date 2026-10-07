@@ -61,6 +61,43 @@ const person = {
     <script type="application/ld+json" is:inline set:html={JSON.stringify(person)} />
   </head>
   <body>
-    <slot />
+    <div class="page">
+      <slot />
+    </div>
+    <footer class="site-footer">
+      <div>
+        <span>{profile.legalName}</span>
+        <span>{profile.cnpj}</span>
+      </div>
+    </footer>
   </body>
 </html>
+
+<style>
+  body {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .page {
+    flex: 1;
+  }
+
+  .site-footer {
+    width: 100%;
+    max-width: 110ch;
+    margin: 0 auto;
+    padding: 0 clamp(1rem, 5vw, 2.5rem) 1.5rem;
+  }
+
+  .site-footer div {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 0.5rem 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--line);
+    color: var(--muted);
+    font-size: 0.85em;
+  }
+</style>

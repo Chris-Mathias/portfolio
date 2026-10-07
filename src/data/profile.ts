@@ -5,6 +5,9 @@ import photo from '../assets/photo.jpg';
 
 export const profile = {
   name: 'Christian Michelson',
+  /** Exibidos no rodapé. */
+  legalName: 'Christian Mathias Michelson',
+  cnpj: '67.952.153/0001-00',
   email: 'christian.m.michelson@gmail.com',
   githubUser: 'Chris-Mathias',
   /** URL completa do perfil; `null` esconde a linha. */
